@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "323871078548",
+    "project_id": "femguardian-9a159",
+    "storage_bucket": "femguardian-9a159.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:323871078548:android:31cd863011755b1d709c81",
+        "android_client_info": {
+          "package_name": "com.femguardian.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "323871078548-f3aeog5v03utqapmobkrhlgrlo2d0r89.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.femguardian.app",
+            "certificate_hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+          }
+        },
+        {
+          "client_id": "323871078548-7hubo7p9mj8in0iiqgmkkd8skriqbkc1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0FOSaBuj7iYz-SU8IhC2rz1trj0u5G_Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "323871078548-7hubo7p9mj8in0iiqgmkkd8skriqbkc1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,97 +1,137 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# FemGuardian - Women's Safety App
 
-# Getting Started
+FemGuardian is a React Native mobile application designed to enhance women's safety in urban environments. The app provides various features including emergency SOS, location tracking, voice threat analysis, and an AI-powered safety chatbot.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Features
 
-## Step 1: Start Metro
+1. **Emergency SOS**
+   - Quick access SOS button
+   - Sends alerts to emergency contacts
+   - Shares current location with authorities
+   - Integrates with local emergency services
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+2. **Location Services**
+   - Real-time location tracking
+   - Route deviation detection
+   - Safe route recommendations
+   - Location history for trusted contacts
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+3. **Voice Threat Analysis**
+   - Real-time audio analysis
+   - Threat detection in voice recordings
+   - Automatic SOS triggering on threat detection
+   - Audio evidence recording
 
-```sh
-# Using npm
-npm start
+4. **AI Safety Chatbot**
+   - 24/7 safety assistance
+   - Emergency helpline information
+   - Safety tips and guidelines
+   - Local safety resource recommendations
 
-# OR using Yarn
-yarn start
-```
+## Prerequisites
 
-## Step 2: Build and run your app
+- Node.js >= 14
+- React Native development environment setup
+- Android Studio (for Android development)
+- Xcode (for iOS development)
+- Firebase account
+- Google Maps API key
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/FemGuardian.git
+   cd FemGuardian
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Configure Firebase:
+   - Create a new Firebase project
+   - Add Android and iOS apps in Firebase console
+   - Download and add the configuration files:
+     - Android: `google-services.json` to `android/app/`
+     - iOS: `GoogleService-Info.plist` to your Xcode project
+   - Update Firebase config in `src/config/firebase.ts`
+
+4. Configure Google Sign-In:
+   - Create OAuth 2.0 client IDs in Google Cloud Console
+   - Add the web client ID to `src/config/firebase.ts`
+
+5. Add Google Maps API key:
+   - Get an API key from Google Cloud Console
+   - Add it to:
+     - Android: `android/app/src/main/AndroidManifest.xml`
+     - iOS: `ios/FemGuardian/AppDelegate.m`
+
+## Running the App
 
 ### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+```bash
+npx react-native run-android
 ```
 
 ### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+```bash
+cd ios
+pod install
+cd ..
+npx react-native run-ios
 ```
 
-Then, and every time you update your native dependencies, run:
+## API Endpoints
 
-```sh
-bundle exec pod install
-```
+The app uses the following API endpoints:
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+1. Chatbot API:
+   ```
+   POST https://speech-threat-chatbot-api.onrender.com/chatbot
+   Content-Type: application/json
+   Body: { "text": "your_query" }
+   ```
 
-```sh
-# Using npm
-npm run ios
+2. Voice Analysis API:
+   ```
+   POST https://speech-threat-chatbot-api.onrender.com/analyze-audio
+   Content-Type: multipart/form-data
+   Body: Form data with audio file
+   ```
 
-# OR using Yarn
-yarn ios
-```
+3. Location Deviation API:
+   ```
+   POST https://deploy-tracking-model.onrender.com/check-deviation
+   Content-Type: application/json
+   Body: { "latitude": number, "longitude": number }
+   ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+4. Emergency Alert API:
+   ```
+   POST http://localhost:3000/api/send-emergency-alert
+   Content-Type: application/json
+   Authorization: Bearer YOUR_FIREBASE_ID_TOKEN
+   Body: { "message": "Emergency message" }
+   ```
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## Contributing
 
-## Step 3: Modify your app
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-Now that you have successfully run the app, let's make changes!
+## License
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+## Acknowledgments
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- React Native Community
+- Firebase
+- Google Maps Platform
+- AI Model Providers
+- Emergency Services Integration Partners
