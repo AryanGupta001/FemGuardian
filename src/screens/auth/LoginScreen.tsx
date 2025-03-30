@@ -10,7 +10,6 @@ import {
   Image,
 } from 'react-native';
 import auth from '@react-native-firebase/auth';
-import { GoogleSignin, type User } from '@react-native-google-signin/google-signin';
 
 interface LoginScreenProps {
   navigation: any;
@@ -33,35 +32,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     } catch (error: any) {
       console.error(error);
       Alert.alert('Error', error.message || 'Failed to login');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      setLoading(true);
-      // Check if your device supports Google Play
-      await GoogleSignin.hasPlayServices();
-      // Get the users ID token
-      const { user, idToken } = await GoogleSignin.signIn();
-      
-      if (!idToken) {
-        throw new Error('No ID token present!');
-      }
-      
-      // Create a Google credential with the token
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-      // Sign-in the user with the credential
-      const userCredential = await auth().signInWithCredential(googleCredential);
-      
-      console.log('User signed in successfully:', userCredential.user.uid);
-    } catch (error: any) {
-      console.error('Google Sign-In Error:', error);
-      Alert.alert(
-        'Sign-In Error',
-        error.message || 'Failed to sign in with Google'
-      );
     } finally {
       setLoading(false);
     }
@@ -101,14 +71,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           ) : (
             <Text style={styles.loginButtonText}>Login</Text>
           )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.googleButton}
-          onPress={handleGoogleLogin}
-          disabled={loading}
-        >
-          <Text style={styles.googleButtonText}>Sign in with Google</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -164,20 +126,6 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  googleButton: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    alignItems: 'center',
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  googleButtonText: {
-    color: '#444',
     fontSize: 18,
     fontWeight: '600',
   },

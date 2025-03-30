@@ -12,6 +12,12 @@ import {
 import auth from '@react-native-firebase/auth';
 import { databaseService } from '../../services/database';
 
+interface EmergencyContact {
+  name: string;
+  phoneNumber: string;
+  relation: string;
+}
+
 interface SignupScreenProps {
   navigation: any;
 }
@@ -24,6 +30,13 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [bloodGroup, setBloodGroup] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContact, setNewContact] = useState<EmergencyContact>({
+    name: '',
+    phoneNumber: '',
+    relation: '',
+  });
 
   const validateForm = () => {
     if (!name || !email || !password || !confirmPassword || !phoneNumber) {
@@ -38,7 +51,23 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
       Alert.alert('Error', 'Password should be at least 6 characters');
       return false;
     }
+    // Add phone number validation
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      Alert.alert('Error', 'Please enter a valid phone number');
+      return false;
+    }
     return true;
+  };
+
+  const handleAddContact = () => {
+    if (!newContact.name || !newContact.phoneNumber || !newContact.relation) {
+      Alert.alert('Error', 'Please fill in all contact details');
+      return;
+    }
+    setEmergencyContacts([...emergencyContacts, newContact]);
+    setNewContact({ name: '', phoneNumber: '', relation: '' });
+    setShowAddContact(false);
   };
 
   const handleSignup = async () => {
@@ -55,7 +84,7 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
         email,
         phoneNumber,
         bloodGroup,
-        emergencyContacts: []
+        emergencyContacts
       });
 
       Alert.alert('Success', 'Account created successfully!');
@@ -130,6 +159,62 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
           autoCapitalize="characters"
         />
 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Emergency Contacts (Optional)</Text>
+          {emergencyContacts.map((contact, index) => (
+            <View key={index} style={styles.contactCard}>
+              <Text style={styles.contactName}>{contact.name}</Text>
+              <Text style={styles.contactDetails}>{contact.phoneNumber}</Text>
+              <Text style={styles.contactDetails}>{contact.relation}</Text>
+            </View>
+          ))}
+
+          {showAddContact ? (
+            <View style={styles.addContactForm}>
+              <TextInput
+                style={styles.input}
+                placeholder="Contact Name"
+                value={newContact.name}
+                onChangeText={(text) => setNewContact({ ...newContact, name: text })}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Contact Phone Number"
+                value={newContact.phoneNumber}
+                onChangeText={(text) => setNewContact({ ...newContact, phoneNumber: text })}
+                keyboardType="phone-pad"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Relation"
+                value={newContact.relation}
+                onChangeText={(text) => setNewContact({ ...newContact, relation: text })}
+              />
+              <View style={styles.buttonRow}>
+                <TouchableOpacity
+                  style={[styles.button, styles.cancelButton]}
+                  onPress={() => setShowAddContact(false)}
+                >
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.button}
+                  onPress={handleAddContact}
+                >
+                  <Text style={styles.buttonText}>Add Contact</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.button, styles.addButton]}
+              onPress={() => setShowAddContact(true)}
+            >
+              <Text style={styles.buttonText}>+ Add Emergency Contact</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <TouchableOpacity style={styles.button} onPress={handleSignup}>
           <Text style={styles.buttonText}>Sign Up</Text>
         </TouchableOpacity>
@@ -154,7 +239,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
   },
   formContainer: {
     padding: 20,
@@ -165,6 +249,16 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 30,
     textAlign: 'center',
+  },
+  section: {
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
   },
   input: {
     backgroundColor: '#f5f5f5',
@@ -185,6 +279,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  addButton: {
+    backgroundColor: '#2196f3',
+  },
+  cancelButton: {
+    backgroundColor: '#666',
+    marginRight: 10,
+  },
   linkButton: {
     marginTop: 15,
   },
@@ -192,6 +293,28 @@ const styles = StyleSheet.create({
     color: '#e91e63',
     textAlign: 'center',
     fontSize: 16,
+  },
+  contactCard: {
+    backgroundColor: '#f5f5f5',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  contactName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  contactDetails: {
+    fontSize: 14,
+    color: '#666',
+  },
+  addContactForm: {
+    marginTop: 10,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
 });
 

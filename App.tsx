@@ -13,17 +13,9 @@ import { CompositeScreenProps } from '@react-navigation/native';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { StackScreenProps } from '@react-navigation/stack';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { ActivityIndicator, View } from 'react-native';
-import { GOOGLE_WEB_CLIENT_ID } from '@env';
-
-// Initialize Google Sign-In
-GoogleSignin.configure({
-  webClientId: GOOGLE_WEB_CLIENT_ID,
-  offlineAccess: true,
-});
+import { ActivityIndicator, View, Image } from 'react-native';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -64,16 +56,16 @@ function TabNavigator() {
 
           switch (route.name) {
             case 'Home':
-              iconName = 'home';
+              iconName = 'dashboard';
               break;
             case 'Chatbot':
-              iconName = 'chat';
+              iconName = 'security';
               break;
             case 'Location':
-              iconName = 'location-on';
+              iconName = 'my-location';
               break;
             case 'Voice':
-              iconName = 'mic';
+              iconName = 'record-voice-over';
               break;
             default:
               iconName = 'error';
@@ -82,25 +74,72 @@ function TabNavigator() {
           return <Icon name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#e91e63',
-        tabBarInactiveTintColor: 'gray',
+        tabBarInactiveTintColor: '#999',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        headerTintColor: '#333',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+          fontSize: 18,
+        },
+        tabBarStyle: {
+          paddingBottom: 5,
+          paddingTop: 5,
+          height: 65,
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#eee',
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          marginTop: 2,
+          fontWeight: '500',
+        },
+        tabBarItemStyle: {
+          paddingVertical: 5,
+        },
       })}>
       <Tab.Screen 
         name="Home" 
         component={HomeScreen}
         options={{
+          title: 'Home',
           headerRight: () => (
             <Icon 
               name="person" 
               size={24} 
-              style={{ marginRight: 15 }}
+              style={{ marginRight: 15, color: '#e91e63' }}
               onPress={() => navigation.navigate('Profile')}
             />
           ),
         }}
       />
-      <Tab.Screen name="Chatbot" component={ChatbotScreen} />
-      <Tab.Screen name="Location" component={LocationScreen} />
-      <Tab.Screen name="Voice" component={VoiceAnalysisScreen} />
+      <Tab.Screen 
+        name="Chatbot" 
+        component={ChatbotScreen}
+        options={{
+          title: 'Safety Chat',
+        }}
+      />
+      <Tab.Screen 
+        name="Location" 
+        component={LocationScreen}
+        options={{
+          title: 'Location',
+        }}
+      />
+      <Tab.Screen 
+        name="Voice" 
+        component={VoiceAnalysisScreen}
+        options={{
+          title: 'Voice Analysis',
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -152,7 +191,17 @@ function App(): React.JSX.Element {
                 component={TabNavigator}
                 options={{ headerShown: false }}
               />
-              <Stack.Screen name="Profile" component={ProfileScreen} />
+              <Stack.Screen 
+                name="Profile" 
+                component={ProfileScreen}
+                options={{
+                  title: 'Profile',
+                  headerStyle: {
+                    backgroundColor: '#e91e63',
+                  },
+                  headerTintColor: '#fff',
+                }}
+              />
             </>
           )}
         </Stack.Navigator>

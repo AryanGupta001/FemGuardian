@@ -4,12 +4,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.BROADCAST_SMS" />
-    <uses-permission android:name="android.permission.SEND_SMS" />
-    <uses-permission android:name="android.permission.RECEIVE_SMS" />
-    <uses-permission android:name="android.permission.READ_SMS" />
-    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <application
       android:name=".MainApplication"
@@ -30,28 +27,10 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
-        <intent-filter>
-            <action android:name="android.intent.action.DIAL" />
-            <category android:name="android.intent.category.DEFAULT" />
-            <data android:scheme="tel" />
-        </intent-filter>
-        <intent-filter>
-            <action android:name="android.provider.Telephony.SMS_DELIVER" />
-            <category android:name="android.intent.category.DEFAULT" />
-            <data android:scheme="sms" />
-            <data android:scheme="smsto" />
-        </intent-filter>
       </activity>
 
-      <!-- SMS Receiver -->
-      <receiver
-        android:name=".SMSReceiver"
-        android:enabled="true"
-        android:exported="true"
-        android:permission="android.permission.BROADCAST_SMS">
-        <intent-filter android:priority="999">
-            <action android:name="android.provider.Telephony.SMS_RECEIVED" />
-        </intent-filter>
-      </receiver>
+      <meta-data
+        android:name="com.google.android.geo.API_KEY"
+        android:value="YOUR_GOOGLE_MAPS_API_KEY"/>
     </application>
 </manifest>

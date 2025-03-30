@@ -1,6 +1,5 @@
 import { initializeApp, getApp } from '@react-native-firebase/app';
 import auth from '@react-native-firebase/auth';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import {
   FIREBASE_API_KEY,
   FIREBASE_PROJECT_ID,
@@ -8,13 +7,7 @@ import {
   FIREBASE_APP_ID,
   FIREBASE_MESSAGING_SENDER_ID,
   FIREBASE_DATABASE_URL,
-  GOOGLE_WEB_CLIENT_ID,
 } from '@env';
-
-// Initialize Google Sign-In
-GoogleSignin.configure({
-  webClientId: GOOGLE_WEB_CLIENT_ID, // Get this from Google Cloud Console
-});
 
 function initializeFirebase() {
   try {

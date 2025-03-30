@@ -1,6 +1,9 @@
-apply plugin: "com.android.application"
-apply plugin: "com.facebook.react"
-apply plugin: "com.google.gms.google-services"
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("com.facebook.react")
+    id("com.google.gms.google-services")
+}
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -123,12 +126,6 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-database")
-    
-    // Add Google Sign-In dependency
-    implementation("com.google.android.gms:play-services-auth:20.7.0")
-    
-    // Add React Native Google Sign-In
-    implementation(project(':@react-native-google-signin_google-signin'))
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

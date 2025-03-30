@@ -3,127 +3,179 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   Alert,
-  ActivityIndicator,
   ScrollView,
   Dimensions,
-  Vibration,
   Platform,
+  Linking,
+  Animated,
 } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import auth from '@react-native-firebase/auth';
 import { databaseService } from '../services/database';
-import { sendEmergencyAlert } from '../services/api';
+import { sendSOS } from '../services/api';
 import type { UserProfile } from '../services/database';
-import Icon from 'react-native-vector-icons/MaterialIcons';
 import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import ErrorHandler from '../utils/errorHandling';
+import SkeletonLoader from '../components/SkeletonLoader';
+import Button from '../components/Button';
+import Card from '../components/Card';
+import { colors } from '../theme/colors';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
 
 const { width } = Dimensions.get('window');
 
+interface Location {
+  latitude: number;
+  longitude: number;
+  address?: string;
+}
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
+
 const HomeScreen = () => {
+  const navigation = useNavigation<NavigationProp>();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [sosActive, setSosActive] = useState(false);
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [location, setLocation] = useState<Location | null>(null);
+  const [sendingSOS, setSendingSOS] = useState(false);
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    loadProfile();
-    getCurrentLocation();
-    // Watch position for continuous location updates
-    const watchId = Geolocation.watchPosition(
-      position => {
-        const { latitude, longitude } = position.coords;
-        setLocation({ latitude, longitude });
-      },
-      error => console.error(error),
-      { enableHighAccuracy: true, distanceFilter: 10 }
-    );
-
-    return () => {
-      Geolocation.clearWatch(watchId);
-    };
+    initializeScreen();
   }, []);
 
-  const loadProfile = async () => {
-    try {
-      const userId = auth().currentUser?.uid;
-      if (!userId) return;
+  useEffect(() => {
+    if (sosActive) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [sosActive]);
 
-      const userProfile = await databaseService.getUserProfile(userId);
-      setProfile(userProfile);
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadProfile();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const initializeScreen = async () => {
+    try {
+      await Promise.all([
+        loadProfile(),
+        requestLocationPermission()
+      ]);
     } catch (error) {
-      console.error('Error loading profile:', error);
-      Alert.alert('Error', 'Failed to load profile');
+      ErrorHandler.handle(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const requestLocationPermission = async () => {
-    try {
-      const permission = Platform.select({
-        android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
-        ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
-      });
-      
-      if (!permission) {
-        throw new Error('Platform not supported');
-      }
+  const loadProfile = async () => {
+    const userId = auth().currentUser?.uid;
+    if (!userId) throw new Error('User not authenticated');
 
-      const result = await check(permission);
-      
-      if (result === RESULTS.DENIED) {
-        const permissionResult = await request(permission);
-        return permissionResult === RESULTS.GRANTED;
+    const userProfile = await databaseService.getUserProfile(userId);
+    if (!userProfile) throw new Error('Profile not found');
+    
+    setProfile(userProfile);
+  };
+
+  const requestLocationPermission = async () => {
+    const permission = Platform.select({
+      android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
+      ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+    });
+
+    if (!permission) throw new Error('Platform not supported');
+
+    const result = await check(permission);
+    
+    if (result === RESULTS.DENIED) {
+      const permissionResult = await request(permission);
+      if (permissionResult !== RESULTS.GRANTED) {
+        throw new Error('Location permission denied');
       }
-      
-      return result === RESULTS.GRANTED;
+    } else if (result !== RESULTS.GRANTED) {
+      throw new Error('Location permission not granted');
+    }
+
+    await getCurrentLocation();
+  };
+
+  const getAddressFromCoordinates = async (latitude: number, longitude: number) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
+      );
+      const data = await response.json();
+      return data.display_name || 'Address not found';
     } catch (error) {
-      console.error('Error requesting location permission:', error);
-      return false;
+      console.error('Error getting address:', error);
+      return 'Unable to get address';
     }
   };
 
   const getCurrentLocation = async () => {
-    const hasPermission = await requestLocationPermission();
-    
-    if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Location permission is required for this feature.');
-      return;
-    }
-    
-    Geolocation.getCurrentPosition(
-      position => {
-        const { latitude, longitude } = position.coords;
-        setLocation({ latitude, longitude });
-      },
-      error => {
-        console.error(error);
-        Alert.alert('Error', 'Failed to get location. Please enable location services.');
-      },
-      { enableHighAccuracy: true }
-    );
+    return new Promise((resolve, reject) => {
+      Geolocation.getCurrentPosition(
+        async position => {
+          try {
+            const address = await getAddressFromCoordinates(
+              position.coords.latitude,
+              position.coords.longitude
+            );
+            setLocation({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              address,
+            });
+            resolve(undefined);
+          } catch (error) {
+            reject(error);
+          }
+        },
+        error => reject(error),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      );
+    });
   };
 
   const handleSOS = async () => {
-    if (!location) {
-      Alert.alert('Error', 'Unable to get your location. Please try again.');
+    if (!location || !profile) {
+      ErrorHandler.handle(new Error(!location ? 'No location available' : 'No profile available'), {
+        title: !location ? 'Location Required' : 'Profile Required',
+        defaultMessage: !location 
+          ? 'Unable to send SOS without location. Please enable location services.'
+          : 'Unable to send SOS without user profile.',
+        retry: !location ? getCurrentLocation : loadProfile,
+      });
       return;
     }
 
+    setSendingSOS(true);
     try {
-      // Vibrate the device
-      Vibration.vibrate([0, 500, 200, 500]);
-      
-      const currentUser = auth().currentUser;
-      if (!currentUser) {
-        Alert.alert('Error', 'You must be logged in to use this feature');
-        return;
-      }
-
-      const message = `Emergency Alert: User ${currentUser.uid} has triggered SOS at location: ${location.latitude}, ${location.longitude}`;
-      await sendEmergencyAlert(message);
+      const message = `Emergency Alert: ${profile.name} needs immediate assistance!`;
+      await sendSOS(location, message);
 
       setSosActive(true);
       Alert.alert(
@@ -135,30 +187,78 @@ const HomeScreen = () => {
             onPress: handleCancelSOS,
             style: 'cancel',
           },
-          { text: 'OK', onPress: () => {} },
+          { text: 'OK' },
         ]
       );
     } catch (error) {
-      console.error('Error activating SOS:', error);
-      Alert.alert('Error', 'Failed to activate SOS. Please try again.');
+      ErrorHandler.handle(error, {
+        title: 'SOS Error',
+        defaultMessage: 'Failed to send SOS. Please try again.',
+        retry: handleSOS,
+      });
+    } finally {
+      setSendingSOS(false);
     }
   };
 
-  const handleCancelSOS = async () => {
+  const handleCancelSOS = () => {
+    setSosActive(false);
+    Alert.alert('Alert Cancelled', 'Your emergency alert has been cancelled.');
+  };
+
+  const handleCall = async (phoneNumber: string) => {
     try {
-      setSosActive(false);
-      Alert.alert('Alert Cancelled', 'Your emergency alert has been cancelled.');
+      const url = `tel:${phoneNumber}`;
+      const supported = await Linking.canOpenURL(url);
+      
+      if (!supported) {
+        throw new Error('Phone calls are not supported on this device');
+      }
+      
+      await Linking.openURL(url);
     } catch (error) {
-      console.error('Error cancelling SOS:', error);
-      Alert.alert('Error', 'Failed to cancel alert. Please try again.');
+      ErrorHandler.handle(error, {
+        title: 'Call Error',
+        defaultMessage: 'Failed to initiate call. Please try again.',
+      });
     }
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#e91e63" />
-      </View>
+      <ScrollView style={styles.container}>
+        <View style={styles.header}>
+          <SkeletonLoader width={120} height={16} style={styles.skeletonText} />
+          <SkeletonLoader width={200} height={24} style={styles.skeletonText} />
+        </View>
+
+        <View style={styles.sosContainer}>
+          <View style={[styles.sosButton, styles.skeletonButton]}>
+            <SkeletonLoader width={width * 0.7} height={width * 0.7} borderRadius={width * 0.35} />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <SkeletonLoader width={150} height={20} style={styles.skeletonTitle} />
+          {[1, 2, 3].map((index) => (
+            <View key={index} style={styles.contactCard}>
+              <View style={styles.contactInfo}>
+                <SkeletonLoader width={120} height={16} style={styles.skeletonText} />
+                <SkeletonLoader width={100} height={14} style={styles.skeletonText} />
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.section}>
+          <SkeletonLoader width={120} height={20} style={styles.skeletonTitle} />
+          <View style={styles.locationCard}>
+            <View style={styles.contactInfo}>
+              <SkeletonLoader width={150} height={14} style={styles.skeletonText} />
+            </View>
+          </View>
+        </View>
+      </ScrollView>
     );
   }
 
@@ -170,45 +270,84 @@ const HomeScreen = () => {
       </View>
 
       <View style={styles.sosContainer}>
-        <TouchableOpacity
-          style={[styles.sosButton, sosActive && styles.sosButtonActive]}
-          onPress={handleSOS}
-        >
-          <Icon name="warning" size={50} color="#fff" />
-          <Text style={styles.sosButtonText}>
-            {sosActive ? 'SOS ACTIVE' : 'PRESS FOR SOS'}
+        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+          <Button
+            onPress={handleSOS}
+            title={sendingSOS ? 'Sending SOS...' : 'SOS'}
+            variant={sosActive ? 'danger' : 'primary'}
+            size="large"
+            loading={sendingSOS}
+            disabled={!location}
+            style={sosActive ? styles.sosButtonActive : styles.sosButton}
+            textStyle={sosActive ? styles.sosButtonTextActive : styles.sosButtonText}
+          />
+        </Animated.View>
+        {!location && (
+          <Text style={styles.sosDisabledText}>
+            Enable location access to activate SOS
           </Text>
-        </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Emergency Contacts</Text>
-        {(profile?.emergencyContacts || []).map((contact, index) => (
-          <View key={index} style={styles.contactCard}>
-            <Icon name="person" size={24} color="#666" />
-            <View style={styles.contactInfo}>
-              <Text style={styles.contactName}>{contact.name}</Text>
-              <Text style={styles.contactPhone}>{contact.phoneNumber}</Text>
-            </View>
-          </View>
-        ))}
-        {(!profile?.emergencyContacts || profile.emergencyContacts.length === 0) && (
-          <Text style={styles.noContacts}>No emergency contacts added</Text>
+        {profile?.emergencyContacts?.length ? (
+          profile.emergencyContacts.map((contact, index) => (
+            <Card key={index} variant="elevated" style={styles.contactCardContainer}>
+              <View style={styles.contactCard}>
+                <View style={styles.contactInfo}>
+                  <Text style={styles.contactName}>{contact.name}</Text>
+                  <Text style={styles.contactPhone}>{contact.phoneNumber}</Text>
+                </View>
+                <Button
+                  onPress={() => handleCall(contact.phoneNumber)}
+                  title="Call"
+                  variant="outline"
+                  size="small"
+                  style={styles.callButton}
+                />
+              </View>
+            </Card>
+          ))
+        ) : (
+          <Card variant="outlined" style={styles.noContactsCard}>
+            <Text style={styles.noContacts}>No emergency contacts added</Text>
+            <Button
+              onPress={() => navigation.navigate('Profile')}
+              title="Add Contact"
+              variant="primary"
+              size="small"
+              style={styles.addContactButton}
+            />
+          </Card>
         )}
       </View>
 
-      {location && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Location</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Your Location</Text>
+        <Card variant="elevated" style={styles.locationCardContainer}>
           <View style={styles.locationCard}>
-            <Icon name="location-on" size={24} color="#666" />
-            <Text style={styles.locationText}>
-              Lat: {location.latitude.toFixed(6)}{'\n'}
-              Long: {location.longitude.toFixed(6)}
-            </Text>
+            <View style={styles.locationInfo}>
+              <Text style={styles.addressLabel}>Current Address</Text>
+              <Text style={styles.addressText}>
+                {location?.address || 'Fetching address...'}
+              </Text>
+              <View style={styles.divider} />
+              <Text style={styles.coordinatesLabel}>Coordinates</Text>
+              <Text style={styles.coordinatesText}>
+                {location ? `${location.latitude}, ${location.longitude}` : 'Fetching location...'}
+              </Text>
+            </View>
+            <Button
+              onPress={getCurrentLocation}
+              title="Update"
+              variant="outline"
+              size="small"
+              style={styles.updateLocationButton}
+            />
           </View>
-        </View>
-      )}
+        </Card>
+      </View>
     </ScrollView>
   );
 };
@@ -216,99 +355,159 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: colors.background,
   },
   header: {
-    padding: 20,
-    backgroundColor: '#f5f5f5',
+    padding: 16,
+    paddingTop: Platform.OS === 'ios' ? 48 : 16,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   welcomeText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginBottom: 2,
   },
   nameText: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '600',
+    color: colors.text.primary,
   },
   sosContainer: {
-    padding: 20,
+    padding: 12,
     alignItems: 'center',
   },
   sosButton: {
-    width: width * 0.8,
-    height: width * 0.8,
-    borderRadius: width * 0.4,
-    backgroundColor: '#e91e63',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    width: width * 0.7,
+    height: width * 0.7,
+    borderRadius: width * 0.35,
+    elevation: 8,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   sosButtonActive: {
-    backgroundColor: '#f44336',
+    elevation: 12,
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    backgroundColor: colors.danger,
   },
   sosButtonText: {
-    color: '#fff',
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
-    marginTop: 10,
+    color: '#FFFFFF',
+  },
+  sosButtonTextActive: {
+    fontSize: 36,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  sosDisabledText: {
+    marginTop: 8,
+    fontSize: 13,
+    color: colors.text.secondary,
+    textAlign: 'center',
   },
   section: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+    padding: 12,
+    paddingTop: 8,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
+    fontWeight: '600',
+    marginBottom: 8,
+    color: colors.text.primary,
+  },
+  contactCardContainer: {
+    marginBottom: 8,
   },
   contactCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
+    padding: 12,
   },
   contactInfo: {
-    marginLeft: 15,
+    flex: 1,
   },
   contactName: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 2,
   },
   contactPhone: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 13,
+    color: colors.text.secondary,
+  },
+  callButton: {
+    minWidth: 72,
+    height: 32,
+  },
+  locationCardContainer: {
+    marginTop: 4,
   },
   locationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 15,
-    borderRadius: 10,
+    padding: 12,
   },
-  locationText: {
-    marginLeft: 15,
-    fontSize: 14,
-    color: '#666',
+  locationInfo: {
+    flex: 1,
+  },
+  addressLabel: {
+    fontSize: 13,
+    color: colors.text.secondary,
+    marginBottom: 2,
+  },
+  addressText: {
+    fontSize: 15,
+    color: colors.text.primary,
+    marginBottom: 8,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 8,
+  },
+  coordinatesLabel: {
+    fontSize: 13,
+    color: colors.text.secondary,
+    marginBottom: 2,
+  },
+  coordinatesText: {
+    fontSize: 15,
+    color: colors.text.primary,
+    marginBottom: 8,
+  },
+  noContactsCard: {
+    padding: 16,
+    alignItems: 'center',
   },
   noContacts: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 13,
+    color: colors.text.secondary,
+    marginBottom: 8,
     textAlign: 'center',
-    marginTop: 10,
+  },
+  addContactButton: {
+    minWidth: 120,
+    height: 36,
+  },
+  updateLocationButton: {
+    alignSelf: 'flex-start',
+    height: 32,
+  },
+  skeletonText: {
+    marginBottom: 8,
+  },
+  skeletonTitle: {
+    marginBottom: 15,
+  },
+  skeletonButton: {
+    backgroundColor: 'transparent',
+    elevation: 0,
+    shadowOpacity: 0,
   },
 });
 
